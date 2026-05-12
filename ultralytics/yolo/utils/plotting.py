@@ -192,6 +192,12 @@ def plot_images(images,
         masks = masks.cpu().numpy().astype(int)
     if isinstance(batch_idx, torch.Tensor):
         batch_idx = batch_idx.cpu().numpy()
+    if isinstance(cls, np.ndarray) and cls.ndim == 0:
+        cls = cls.reshape(1)
+    if isinstance(batch_idx, np.ndarray) and batch_idx.ndim == 0:
+        batch_idx = batch_idx.reshape(1)
+    if isinstance(bboxes, np.ndarray) and bboxes.ndim == 1:
+        bboxes = bboxes.reshape(1, -1)
 
     max_size = 1920  # max image size
     max_subplots = 16  # max image subplots, i.e. 4x4
@@ -300,6 +306,12 @@ def plot_event_images(images,
          masks = masks.cpu().numpy().astype(int)
      if isinstance(batch_idx, torch.Tensor):
         batch_idx = batch_idx.cpu().numpy()
+     if isinstance(cls, np.ndarray) and cls.ndim == 0:
+        cls = cls.reshape(1)
+     if isinstance(batch_idx, np.ndarray) and batch_idx.ndim == 0:
+        batch_idx = batch_idx.reshape(1)
+     if isinstance(bboxes, np.ndarray) and bboxes.ndim == 1:
+        bboxes = bboxes.reshape(1, -1)
 
      max_size = 1920  # max image size
      max_subplots = 16  # max image subplots, i.e. 4x4
@@ -334,7 +346,7 @@ def plot_event_images(images,
         annotator.rectangle([x, y, x + w, y + h], None, (255, 255, 255), width=2)  # borders
         if paths:
             annotator.text((x + 5, y + 5 + h), text=Path(paths[i]).name[:40], txt_color=(220, 220, 220))  # filenames
-        if len(cls) > 0:
+        if np.asarray(cls).size > 0:
             idx = batch_idx == i
 
             boxes = xywh2xyxy(bboxes[idx, :4]).T

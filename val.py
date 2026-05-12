@@ -38,7 +38,7 @@ class EventVideoDetectionValidator(BaseValidator):
         self.iouv = torch.linspace(0.5, 0.95, 10)  # iou vector for mAP@0.5:0.95
         self.niou = self.iouv.numel()
         self.imgsz = self.args.imgsz
-        self.dtype = torch.cuda.HalfTensor if self.args.half else torch.cuda.FloatTensor
+        self.dtype = torch.float16 if self.args.half else torch.float32
         if self.args.plots:
           if not os.path.exists(os.path.join(self.save_dir, "preds")):
             os.mkdir(os.path.join(self.save_dir, "labels"))
@@ -58,7 +58,7 @@ class EventVideoDetectionValidator(BaseValidator):
             model = trainer.ema.ema or trainer.model
             self.args.half = self.device.type != 'cpu'  # force FP16 val during training
             model = model.half() if self.args.half else model.float()
-            self.dtype = torch.cuda.HalfTensor if self.args.half else torch.cuda.FloatTensor
+            self.dtype = torch.float16 if self.args.half else torch.float32
             self.model = model
             self.loss = torch.zeros_like(trainer.loss_items, device=trainer.device)
             self.args.plots = trainer.epoch == trainer.epochs - 1  # always plot final epoch
@@ -119,7 +119,7 @@ class EventVideoDetectionValidator(BaseValidator):
             # preprocess
             #batch, classes, bboxes, batch_idx
             with dt[0]:
-                batch_ = self.preprocess(batch['img'][:,T,:,:,:], batch['cls'][sequence_mask], batch['bboxes'][sequence_mask], batch['batch_idx'][sequence_mask]).type(self.dtype)
+                batch_ = self.preprocess(batch['img'][:,T,:,:,:], batch['cls'][sequence_mask], batch['bboxes'][sequence_mask], batch['batch_idx'][sequence_mask]).to(dtype=self.dtype)
                 
             # inference
             with dt[1]:
@@ -312,7 +312,7 @@ class EventVideoDetectionValidator(BaseValidator):
 
         plot_event_images(batch_,
                     batch['batch_idx'][seq_mask],
-                    batch['cls'][seq_mask].squeeze(-1),
+                    batch['cls'][seq_mask].reshape(-1),
                     batch['bboxes'][seq_mask],
                     paths=None,
                     fname=self.save_dir / f'labels/val_batch{ni}_seq{si}_labels.jpg',
@@ -376,14 +376,14 @@ def val(cfg=DEFAULT_CFG,use_python=False):
  def parse_opt(known=False):
     parser = argparse.ArgumentParser()
     parser.add_argument('--weights', type=str, default=ROOT / 'yolov8n.pt', help='initial weights path')
-    parser.add_argument('--model', type=str, default=ROOT / 'yolov8n.yaml', help='model.yaml path')
-    parser.add_argument('--data', type=str, default=ROOT / 'data/coco128.yaml', help='dataset.yaml path')
+    parser.add_argument('--model', type=str, default='weights/gen1/reyolov8s_gen1_rps.pt', help='model.yaml path')
+    parser.add_argument('--data', type=str, default='vtei_gen1.yaml', help='dataset.yaml path')
     parser.add_argument('--batch', type=int, default=16, help='total batch size for all GPUs, -1 for autobatch')
     parser.add_argument('--imgsz', '--img', '--img-size', type=int, default=320, help='train, val image size (pixels)')
-    parser.add_argument('--channels', type=int, default=1, help='number of channels')
+    parser.add_argument('--channels', type=int, default=5, help='number of channels')
     parser.add_argument('--resume', nargs='?', const=True, default=False, help='resume most recent training')
     parser.add_argument('--cache', type=str, nargs='?', const='ram', help='--cache images in "ram" (default) or "disk"')
-    parser.add_argument('--device', default='', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
+    parser.add_argument('--device', default='cpu', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
     parser.add_argument('--workers', type=int, default=8, help='max dataloader workers (per RANK in DDP mode)')
     parser.add_argument('--project', default=ROOT / 'runs/', help='save to project/name')
     parser.add_argument('--name', default='exp', help='save to project/name')
